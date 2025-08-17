@@ -1,0 +1,12 @@
+[package]
+name = "mini_lua"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+full_moon = "2.0.0"
+unindent = "0.2.4"
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+unindent = "0.2.4"
