@@ -13,7 +13,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
-        devShells.lua51 = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           name = "lua51";
           package = with pkgs; [
             lua51Packages.lua
