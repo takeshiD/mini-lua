@@ -1,12 +1,19 @@
-mod parser;
 mod eval;
+mod parser;
+mod opcodes;
 
+use anyhow::Result;
 use unindent::unindent;
-fn main() {
+
+fn main() -> Result<()> {
     let program = unindent(
         "
-    local x = 1
+    a = 1 + 2
     ",
     );
-    println!("{:#?}", parser::parse(program.as_str()));
+    let ast = parser::parse(program.as_str()).unwrap();
+    let mut env = eval::Env::new();
+    eval::eval_block(ast.nodes(), &mut env)?;
+    println!("{:#?}", env);
+    Ok(())
 }

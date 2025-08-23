@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.99"
 full_moon = "2.0.0"
 unindent = "0.2.4"
 
