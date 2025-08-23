@@ -35,6 +35,8 @@ main <local_assign.lua:0,0> (9 instructions, 36 bytes at 0x425880)
 # Instructions
 [lua-bytecode](https://openpunk.com/pages/lua-bytecode-parser/)
 
+![inst](img/inst.svg)
+
 ## Lua5.1
 ```mermaid
 packet
