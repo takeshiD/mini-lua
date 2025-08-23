@@ -32,6 +32,20 @@ main <local_assign.lua:0,0> (9 instructions, 36 bytes at 0x425880)
 # Tools
 [Lua bytecode explorer](https://www.luac.nl/)
 
+# Instructions
+[lua-bytecode](https://openpunk.com/pages/lua-bytecode-parser/)
+
+## Lua5.1
+```mermaid
+packet
+0-5: "Opcode"
+6-13: "A"
+14-22: "C"
+23-31: "B"
+
+```
+
+
 # Comparison Opcodes
 
 ## [Lua5.1](https://www.lua.org/source/5.1/lopcodes.h.html)
