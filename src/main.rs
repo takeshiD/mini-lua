@@ -1,6 +1,7 @@
 mod eval;
 mod parser;
 mod opcodes;
+mod undump;
 
 use anyhow::Result;
 use unindent::unindent;

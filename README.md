@@ -36,6 +36,43 @@ main <local_assign.lua:0,0> (9 instructions, 36 bytes at 0x425880)
 [lua-bytecode](https://openpunk.com/pages/lua-bytecode-parser/)
 
 ## Lua5.1
+<<<<<<< Updated upstream:README.md
+||||||| Stash base:bytecodes/ANALYSYS.md
+```mermaid
+packet
+0-5: "Opcode"
+6-13: "A"
+14-22: "C"
+23-31: "B"
+
+```
+=======
+
+iABC
+```mermaid
+packet
+0-5: "Opcode"
+6-13: "A"
+14-22: "C"
+23-31: "B"
+```
+
+iABx
+```mermaid
+packet
+0-5: "Opcode"
+6-13: "A"
+14-31: "Bx"
+```
+
+iAsBx
+```mermaid
+packet
+0-5: "Opcode"
+6-13: "A"
+14-31: "sBx"
+```
+>>>>>>> Stashed changes:bytecodes/ANALYSYS.md
 
 ![inst](img/inst_lua51.svg)
 
