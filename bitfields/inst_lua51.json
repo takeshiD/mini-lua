@@ -1,0 +1,35 @@
+{
+    "labels": [
+        "Sample"
+    ],
+    "reg": [
+        {
+            "name": "OPCODE:6",
+            "bits": 6
+        },
+        {
+            "name": "A:8",
+            "bits": 8
+        },
+        {
+            "name": "C:9",
+            "bits": 5
+        },
+        {
+            "name": "B:9",
+            "bits": 3
+        },
+        {
+            "name": "OPCODE:6",
+            "bits": 6
+        },
+        {
+            "name": "A:8",
+            "bits": 8
+        },
+        {
+            "name": "Bx:18",
+            "bits": 18 
+        }
+    ]
+}
