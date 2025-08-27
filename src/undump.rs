@@ -1,8 +1,8 @@
 use anyhow::Result;
-use core::convert::TryInto;
 use core::panic;
 use std::{
-    fmt::Result, io::{Cursor, Read, Seek, SeekFrom}, ops::RangeTo, vec
+    io::{Cursor, Read},
+    vec,
 };
 
 #[derive(Debug, PartialEq)]
@@ -49,7 +49,7 @@ struct Chunk {
 enum Constant {
     Nil,
     Bool(bool),
-    Number(f32),
+    Number(f64),
     String(String),
 }
 
@@ -87,20 +87,18 @@ enum SizeT {
     U64(u64),
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 enum LuaInt {
     U32(u32),
     U64(u64),
 }
 
-impl From<u32> for LuaInt {
-    fn from(item: u32) -> Self {
-        LuaInt::U32(item)
-    }
-}
-impl From<u64> for LuaInt {
-    fn from(item: u64) -> Self {
-        LuaInt::U64(item)
+impl From<LuaInt> for usize {
+    fn from(item: LuaInt) -> usize {
+        match item {
+            LuaInt::U32(n) => n as usize,
+            LuaInt::U64(n) => n as usize,
+        }
     }
 }
 
@@ -161,6 +159,15 @@ impl Undump {
         match header.endian {
             Endian::BigEndian => Ok(f32::from_be_bytes(buf)),
             Endian::LittleEndian => Ok(f32::from_le_bytes(buf)),
+        }
+    }
+
+    fn read_float64(&mut self, header: &Header) -> Result<f64> {
+        let mut buf = [0u8; 8];
+        self.cur.read_exact(&mut buf)?;
+        match header.endian {
+            Endian::BigEndian => Ok(f64::from_be_bytes(buf)),
+            Endian::LittleEndian => Ok(f64::from_le_bytes(buf)),
         }
     }
 
@@ -255,75 +262,62 @@ impl Undump {
     fn read_chunk(&mut self, header: &Header) -> Result<Chunk> {
         // meta info
         let name = self.read_string(header)?;
-        println!("name: {name}");
         let first_line = self.read_uint(header)?;
-        println!("fst: {first_line:?}");
         let last_line = self.read_uint(header)?;
-        println!("last: {last_line:?}");
         let num_upval = self.read_byte()?;
-        println!("upval: {num_upval}");
         let num_params = self.read_byte()?;
-        println!("paras: {num_params}");
         let is_varg = self.read_byte()? != 0u8;
-        println!("is_varg: {is_varg}");
         let max_stack = self.read_byte()?;
-        println!("{:#?}", name);
 
         // instructions
         let num_insts = self.read_uint(header)?;
         let mut insts = vec![];
-        for _ in 0..num_insts {
+        for _ in 0..usize::from(num_insts) {
             insts.push(self.read_uint32(header)?);
         }
-        println!("num_insts: {:?}", num_insts);
         // constant table
         let num_consts = self.read_uint(header)?;
         let mut consts = vec![];
-        for _ in 0..(num_consts.into() as usize) {
+        for _ in 0..usize::from(num_consts) {
             match self.read_byte()? {
                 0 => consts.push(Constant::Nil),
                 1 => consts.push(Constant::Bool(self.read_byte()? != 0)),
-                3 => consts.push(Constant::Number(self.read_float32(header)?)),
+                3 => consts.push(Constant::Number(self.read_float64(header)?)),
                 4 => consts.push(Constant::String(self.read_string(header)?)),
                 n => panic!("unknown datatype: actually got '{n}'"),
             }
         }
-        println!("num_consts: {:?}", num_consts);
         // proto
         let num_protos = self.read_uint(header)?;
         let mut protos = vec![];
-        for _ in 0..(num_protos.into() as usize) {
+        for _ in 0..usize::from(num_protos) {
             protos.push(self.read_chunk(header)?);
         }
-        println!("num_protos: {:?}", num_protos);
 
         // number_of_lines
         let num_lines = self.read_uint(header)?;
         let mut lines = vec![];
-        for _ in 0..(num_lines.into() as usize) {
+        for _ in 0..usize::from(num_lines) {
             lines.push(self.read_uint(header)?);
         }
-        println!("num_lines: {:?}", num_lines);
 
         // local list
         let num_locals = self.read_uint(header)?;
         let mut locals = vec![];
-        for _ in 0..(num_locals.into() as usize) {
+        for _ in 0..usize::from(num_locals) {
             let name = self.read_string(header)?;
             let start_line = self.read_uint(header)?;
             let end_line = self.read_uint(header)?;
             locals.push(Local::new(name, start_line, end_line));
         }
-        println!("num_locals: {:?}", num_locals);
 
         // upvalue
         let num_upvals = self.read_uint(header)?;
         let mut upvals = vec![];
-        for _ in 0..(num_upvals.into() as usize) {
+        for _ in 0..usize::from(num_upvals) {
             let name = self.read_string(header)?;
             upvals.push(name);
         }
-        println!("num_upvals: {:?}", num_upvals);
         Ok(Chunk {
             name,
             meta_info: MetaInfo {
@@ -344,9 +338,7 @@ impl Undump {
     }
     pub fn undump(&mut self) -> Result<(Header, Chunk)> {
         let header = self.read_header()?;
-        println!("{:#?}", header);
         let chunk = self.read_chunk(&header)?;
-        println!("{:#?}", chunk);
         Ok((header, chunk))
     }
 
