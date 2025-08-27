@@ -1,6 +1,57 @@
 use anyhow::Result;
+use core::convert::TryInto;
 use core::panic;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::{
+    fmt::Result, io::{Cursor, Read, Seek, SeekFrom}, ops::RangeTo, vec
+};
+
+#[derive(Debug, PartialEq)]
+struct Local {
+    name: String,
+    start_line: LuaInt,
+    end_line: LuaInt,
+}
+
+impl Local {
+    pub fn new(name: String, start_line: LuaInt, end_line: LuaInt) -> Self {
+        Self {
+            name,
+            start_line,
+            end_line,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct MetaInfo {
+    first_line: LuaInt,
+    last_line: LuaInt,
+    num_upvals: LuaInt,
+    num_params: u8,
+    is_varg: bool,
+    max_stack: u8,
+}
+
+#[derive(Debug, PartialEq)]
+struct Chunk {
+    name: String,
+    meta_info: MetaInfo,
+    instructions: Vec<u32>,
+    constant_table: Vec<Constant>,
+    protos: Vec<Chunk>,
+    lines: Vec<LuaInt>,
+    locals: Vec<Local>,
+    upvalues: Vec<String>,
+}
+
+#[derive(Debug, PartialEq)]
+#[repr(u8)]
+enum Constant {
+    Nil,
+    Bool(bool),
+    Number(f32),
+    String(String),
+}
 
 #[derive(Debug, PartialEq)]
 #[repr(u8)]
@@ -18,7 +69,7 @@ enum Integral {
 
 #[derive(Debug, PartialEq)]
 #[repr(C)]
-struct LuaHeader {
+struct Header {
     signature: [u8; 4], // 0x1b4c7561
     lua_version: u8,    // 0x51
     format_version: u8, // 0x00
@@ -30,9 +81,31 @@ struct LuaHeader {
     integral: Integral, // 0x00=floating-point, 0x01=integral number type default 0
 }
 
+enum SizeT {
+    U0,
+    U32(u32),
+    U64(u64),
+}
+
+#[derive(Debug, PartialEq, PartialOrd)]
+enum LuaInt {
+    U32(u32),
+    U64(u64),
+}
+
+impl From<u32> for LuaInt {
+    fn from(item: u32) -> Self {
+        LuaInt::U32(item)
+    }
+}
+impl From<u64> for LuaInt {
+    fn from(item: u64) -> Self {
+        LuaInt::U64(item)
+    }
+}
 
 #[derive(Debug, PartialEq)]
-struct Undump {
+pub struct Undump {
     cur: Cursor<Vec<u8>>,
 }
 
@@ -42,7 +115,7 @@ impl Undump {
             cur: Cursor::new(bytes),
         }
     }
-    fn read_header(&mut self) -> Result<LuaHeader> {
+    fn read_header(&mut self) -> Result<Header> {
         let mut signature = [0u8; 4];
         let mut lua_version = [0u8; 1];
         let mut format_version = [0u8; 1];
@@ -61,7 +134,7 @@ impl Undump {
         self.cur.read_exact(&mut inst_size)?;
         self.cur.read_exact(&mut number_size)?;
         self.cur.read_exact(&mut integral)?;
-        Ok(LuaHeader {
+        Ok(Header {
             signature,
             lua_version: u8::from_be_bytes(lua_version),
             format_version: u8::from_be_bytes(format_version),
@@ -81,15 +154,218 @@ impl Undump {
             },
         })
     }
-    fn read_function(&mut self) {}
-    pub fn undump(&self) {}
 
-    pub fn print(&self) {}
+    fn read_float32(&mut self, header: &Header) -> Result<f32> {
+        let mut buf = [0u8; 4];
+        self.cur.read_exact(&mut buf)?;
+        match header.endian {
+            Endian::BigEndian => Ok(f32::from_be_bytes(buf)),
+            Endian::LittleEndian => Ok(f32::from_le_bytes(buf)),
+        }
+    }
+
+    fn read_uint32(&mut self, header: &Header) -> Result<u32> {
+        let mut buf = [0u8; 4];
+        self.cur.read_exact(&mut buf)?;
+        match header.endian {
+            Endian::BigEndian => Ok(u32::from_be_bytes(buf)),
+            Endian::LittleEndian => Ok(u32::from_le_bytes(buf)),
+        }
+    }
+
+    fn read_uint64(&mut self, header: &Header) -> Result<u64> {
+        let mut buf = [0u8; 8];
+        self.cur.read_exact(&mut buf)?;
+        match header.endian {
+            Endian::BigEndian => Ok(u64::from_be_bytes(buf)),
+            Endian::LittleEndian => Ok(u64::from_le_bytes(buf)),
+        }
+    }
+
+    fn read_size_t(&mut self, header: &Header) -> Result<SizeT> {
+        match header.size_t_size {
+            4 => {
+                let mut buf = [0u8; 4];
+                self.cur.read_exact(&mut buf)?;
+                match header.endian {
+                    Endian::BigEndian => Ok(SizeT::U32(u32::from_be_bytes(buf))),
+                    Endian::LittleEndian => Ok(SizeT::U32(u32::from_le_bytes(buf))),
+                }
+            }
+            8 => {
+                let mut buf = [0u8; 8];
+                self.cur.read_exact(&mut buf)?;
+                match header.endian {
+                    Endian::BigEndian => Ok(SizeT::U64(u64::from_be_bytes(buf))),
+                    Endian::LittleEndian => Ok(SizeT::U64(u64::from_le_bytes(buf))),
+                }
+            }
+            n => {
+                unimplemented!("any size_t is not implemeted... got '{n}'")
+            }
+        }
+    }
+
+    fn read_string(&mut self, header: &Header) -> Result<String> {
+        match self.read_size_t(header)? {
+            SizeT::U0 => Ok("".to_string()),
+            SizeT::U32(size) => {
+                let mut string_bytes = vec![0u8; size as usize];
+                self.cur.read_exact(&mut string_bytes)?;
+                let ret = String::from_utf8(string_bytes)?;
+                Ok(ret)
+            }
+            SizeT::U64(size) => {
+                let mut string_bytes = vec![0u8; size as usize];
+                self.cur.read_exact(&mut string_bytes)?;
+                let ret = String::from_utf8(string_bytes)?;
+                Ok(ret)
+            }
+        }
+    }
+
+    fn read_uint(&mut self, header: &Header) -> Result<LuaInt> {
+        match header.int_size {
+            4 => {
+                let mut buf = [0u8; 4];
+                self.cur.read_exact(&mut buf)?;
+                match header.endian {
+                    Endian::BigEndian => Ok(LuaInt::U32(u32::from_be_bytes(buf))),
+                    Endian::LittleEndian => Ok(LuaInt::U32(u32::from_le_bytes(buf))),
+                }
+            }
+            8 => {
+                let mut buf = [0u8; 8];
+                self.cur.read_exact(&mut buf)?;
+                match header.endian {
+                    Endian::BigEndian => Ok(LuaInt::U64(u64::from_be_bytes(buf))),
+                    Endian::LittleEndian => Ok(LuaInt::U64(u64::from_le_bytes(buf))),
+                }
+            }
+            n => unimplemented!("any int size is not implemeted... got '{n}'"),
+        }
+    }
+
+    fn read_byte(&mut self) -> Result<u8> {
+        let mut buf = [0u8; 1];
+        self.cur.read_exact(&mut buf)?;
+        Ok(u8::from_le_bytes(buf))
+    }
+
+    fn read_chunk(&mut self, header: &Header) -> Result<Chunk> {
+        // meta info
+        let name = self.read_string(header)?;
+        println!("name: {name}");
+        let first_line = self.read_uint(header)?;
+        println!("fst: {first_line:?}");
+        let last_line = self.read_uint(header)?;
+        println!("last: {last_line:?}");
+        let num_upval = self.read_byte()?;
+        println!("upval: {num_upval}");
+        let num_params = self.read_byte()?;
+        println!("paras: {num_params}");
+        let is_varg = self.read_byte()? != 0u8;
+        println!("is_varg: {is_varg}");
+        let max_stack = self.read_byte()?;
+        println!("{:#?}", name);
+
+        // instructions
+        let num_insts = self.read_uint(header)?;
+        let mut insts = vec![];
+        for _ in 0..num_insts {
+            insts.push(self.read_uint32(header)?);
+        }
+        println!("num_insts: {:?}", num_insts);
+        // constant table
+        let num_consts = self.read_uint(header)?;
+        let mut consts = vec![];
+        for _ in 0..(num_consts.into() as usize) {
+            match self.read_byte()? {
+                0 => consts.push(Constant::Nil),
+                1 => consts.push(Constant::Bool(self.read_byte()? != 0)),
+                3 => consts.push(Constant::Number(self.read_float32(header)?)),
+                4 => consts.push(Constant::String(self.read_string(header)?)),
+                n => panic!("unknown datatype: actually got '{n}'"),
+            }
+        }
+        println!("num_consts: {:?}", num_consts);
+        // proto
+        let num_protos = self.read_uint(header)?;
+        let mut protos = vec![];
+        for _ in 0..(num_protos.into() as usize) {
+            protos.push(self.read_chunk(header)?);
+        }
+        println!("num_protos: {:?}", num_protos);
+
+        // number_of_lines
+        let num_lines = self.read_uint(header)?;
+        let mut lines = vec![];
+        for _ in 0..(num_lines.into() as usize) {
+            lines.push(self.read_uint(header)?);
+        }
+        println!("num_lines: {:?}", num_lines);
+
+        // local list
+        let num_locals = self.read_uint(header)?;
+        let mut locals = vec![];
+        for _ in 0..(num_locals.into() as usize) {
+            let name = self.read_string(header)?;
+            let start_line = self.read_uint(header)?;
+            let end_line = self.read_uint(header)?;
+            locals.push(Local::new(name, start_line, end_line));
+        }
+        println!("num_locals: {:?}", num_locals);
+
+        // upvalue
+        let num_upvals = self.read_uint(header)?;
+        let mut upvals = vec![];
+        for _ in 0..(num_upvals.into() as usize) {
+            let name = self.read_string(header)?;
+            upvals.push(name);
+        }
+        println!("num_upvals: {:?}", num_upvals);
+        Ok(Chunk {
+            name,
+            meta_info: MetaInfo {
+                first_line,
+                last_line,
+                num_upvals,
+                num_params,
+                is_varg,
+                max_stack,
+            },
+            instructions: insts,
+            constant_table: consts,
+            protos,
+            lines,
+            locals,
+            upvalues: upvals,
+        })
+    }
+    pub fn undump(&mut self) -> Result<(Header, Chunk)> {
+        let header = self.read_header()?;
+        println!("{:#?}", header);
+        let chunk = self.read_chunk(&header)?;
+        println!("{:#?}", chunk);
+        Ok((header, chunk))
+    }
+
+    pub fn print(&mut self) {
+        match self.undump() {
+            Ok((h, c)) => {
+                println!("header: {:#?}", h);
+                println!("chunk: {:#?}", c);
+            }
+            Err(e) => {
+                eprintln!("{e}");
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::undump::{Endian, Integral, LuaHeader, Undump};
+    use crate::undump::{Endian, Header, Integral, Undump};
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -106,13 +382,13 @@ mod tests {
         bytecodes.extend(&0x00u8.to_be_bytes()); // integral
         let result = bytecodes
             .iter()
-            .map(|n| format!("{:02X}", n))
+            .map(|n| format!("{:02x}", n))
             .collect::<String>();
         println!("{}", result);
         let mut undump = Undump::new(bytecodes);
         assert_eq!(
             undump.read_header().unwrap(),
-            LuaHeader {
+            Header {
                 signature: 0x1b4c7561u32.to_be_bytes(),
                 lua_version: 0x51u8,
                 format_version: 0x00u8,
@@ -124,6 +400,6 @@ mod tests {
                 integral: Integral::FloatingPoint,
             }
         );
-        assert_eq!(12, std::mem::size_of::<LuaHeader>());
+        assert_eq!(12, std::mem::size_of::<Header>());
     }
 }
