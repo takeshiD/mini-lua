@@ -24,6 +24,47 @@ main <local_assign.lua:0,0> (9 instructions, 36 bytes at 0x425880)
         9       [4]     RETURN          0 1
 ```
 
+```lua
+function calc(x)
+    local a = x + 2
+    return a * a
+end
+print(calc(12))
+```
+
+`luac -l -l function.lua`
+```bin
+main <function.lua:0,0> (8 instructions, 32 bytes at 0x425860)
+0+ params, 3 slots, 0 upvalues, 0 locals, 3 constants, 1 function
+        1       [4]     CLOSURE         0 0     ; 0x425a40
+        2       [1]     SETGLOBAL       0 -1    ; calc
+        3       [5]     GETGLOBAL       0 -2    ; print
+        4       [5]     GETGLOBAL       1 -1    ; calc
+        5       [5]     LOADK           2 -3    ; 12
+        6       [5]     CALL            1 2 0
+        7       [5]     CALL            0 0 1
+        8       [5]     RETURN          0 1
+constants (3) for 0x425860:
+        1       "calc"
+        2       "print"
+        3       12
+locals (0) for 0x425860:
+upvalues (0) for 0x425860:
+
+function <function.lua:1,4> (4 instructions, 16 bytes at 0x425a40)
+1 param, 3 slots, 0 upvalues, 2 locals, 1 constant, 0 functions
+        1       [2]     ADD             1 0 -1  ; - 2
+        2       [3]     MUL             2 1 1
+        3       [3]     RETURN          2 2
+        4       [4]     RETURN          0 1
+constants (1) for 0x425a40:
+        1       2
+locals (2) for 0x425a40:
+        0       x       1       4
+        1       a       2       4
+upvalues (0) for 0x425a40:
+```
+
 # Register Machine
 > [!NOTE] **Reference**
 > [The Implementation of Lua5.0](https://www.lua.org/doc/jucs05.pdf)
@@ -36,8 +77,6 @@ main <local_assign.lua:0,0> (9 instructions, 36 bytes at 0x425880)
 [lua-bytecode](https://openpunk.com/pages/lua-bytecode-parser/)
 
 ## Lua5.1
-<<<<<<< Updated upstream:README.md
-||||||| Stash base:bytecodes/ANALYSYS.md
 ```mermaid
 packet
 0-5: "Opcode"
@@ -46,7 +85,6 @@ packet
 23-31: "B"
 
 ```
-=======
 
 iABC
 ```mermaid
@@ -72,7 +110,6 @@ packet
 6-13: "A"
 14-31: "sBx"
 ```
->>>>>>> Stashed changes:bytecodes/ANALYSYS.md
 
 ![inst](img/inst_lua51.svg)
 
@@ -384,4 +421,17 @@ OP_VARARG,/*    A C     R[A], R[A+1], ..., R[A+C-2] = vararg            */
 OP_VARARGPREP,/*A       (adjust vararg parameters)                      */
 
 OP_EXTRAARG/*   Ax      extra (larger) argument for previous opcode     */
+```
+
+
+# Macros
+
+RKB,RKC: B, Cの先頭bitが1なら定数、0ならレジスタアドレスとして扱う
+```c
+#define RB(i)   check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base+GETARG_B(i))
+#define RC(i)   check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base+GETARG_C(i))
+#define RKB(i)  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, \
+        ISK(GETARG_B(i)) ? k+INDEXK(GETARG_B(i)) : base+GETARG_B(i))
+#define RKC(i)  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
+        ISK(GETARG_C(i)) ? k+INDEXK(GETARG_C(i)) : base+GETARG_C(i))
 ```

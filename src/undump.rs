@@ -33,7 +33,7 @@ struct MetaInfo {
 }
 
 #[derive(Debug, PartialEq)]
-struct Chunk {
+pub struct Chunk {
     name: String,
     meta_info: MetaInfo,
     instructions: Vec<u32>,

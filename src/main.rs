@@ -2,6 +2,7 @@ mod eval;
 mod opcodes;
 mod parser;
 mod undump;
+mod vm;
 
 use std::env::args;
 use std::path::PathBuf;

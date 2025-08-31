@@ -6,27 +6,29 @@ use full_moon::ast::{BinOp, Block, Expression, LastStmt, Stmt};
 use full_moon::tokenizer::TokenType;
 
 #[derive(Debug, Clone)]
-struct TValue {
+pub struct TValue {
     val: Value,
     ttag: TypeTag,
 }
 
 impl TValue {
-    fn new(val: Value, lua_type: LuaType) -> TValue {
+    pub fn new(val: Value, lua_type: LuaType) -> TValue {
         TValue {
             val,
             ttag: TypeTag::from_basictype(lua_type),
         }
     }
-    fn lua_type(&self) -> Option<LuaType> {
+    pub fn lua_type(&self) -> Option<LuaType> {
         self.ttag.lua_type()
     }
 }
 
+pub type LuaNumber = f64;
+pub type LuaInteger = i64;
 #[derive(Debug, Clone)]
-enum Value {
-    Integer(i64),
-    Number(f64),
+pub enum Value {
+    Integer(LuaInteger),
+    Number(LuaNumber),
 }
 
 const TAG_MASK: u8 = 0x0F; // b0000_1111
@@ -74,7 +76,7 @@ impl TypeTag {
 /// called `Basic type`(LUA_T*) in lua type tag system
 #[derive(Debug, Clone)]
 #[repr(u8)]
-enum LuaType {
+pub enum LuaType {
     Nil = 0,
     Boolean = 1,
     LightUserData = 2,
