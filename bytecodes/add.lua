@@ -1,2 +1,2 @@
-a = 1 + 2
-local x = a + 10
+a = 1
+local x = a + 2

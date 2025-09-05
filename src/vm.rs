@@ -1,50 +1,51 @@
 use core::panic;
 
-use crate::eval::{LuaNumber, LuaType, TValue, Value};
-use crate::opcodes::{Instruction, OpCode};
-use crate::undump::Chunk;
+use crate::eval::{LuaType, TValue, Value};
+use crate::opcodes::{Instruction, as_ra, as_rkb, as_rkc};
+use crate::undump::Constant;
+
+struct Proto {
+    constant_table: Vec<Constant>,
+    constant_index: usize,
+}
 
 struct CallInfo {
     base: TValue,
     func: TValue,
     top: TValue,
-    proto: Chunk,
+    proto: Proto,
 }
 
 struct LuaState {
     stack: Vec<TValue>,
     ci: Vec<CallInfo>,
-    base: TValue,
+    base: usize,
 }
 
 impl LuaState {
-    fn set_number(&mut self, ra: usize, n: LuaNumber) {
-        self.stack[ra] = TValue::new(Value::Number(n), LuaType::Number);
+    fn set_number(&mut self, ra: usize, tval: TValue) {
+        self.stack[ra] = tval.clone();
     }
-}
-
-macro_rules! RK {
-    ($($x:expr, $base:expr)) => {
-        
-    };
 }
 
 fn vm_execute(state: &mut LuaState, insts: Vec<Instruction>) {
     let mut pc: usize = 0;
+    let k = state.ci.first().unwrap().proto.constant_index;
     loop {
         match insts[pc] {
-            Instruction::Move(op, a, b) => {}
-            Instruction::LoadK(op, a, bx) => {}
-            Instruction::Add(op, a, b, c) => {
-                let ra = a as usize;
-                let rb = RK(b, state.base);
-                let rc = c.as_rk(c);
-                match (rb.lua_type(), rc.lua_type()) {
-                    (Some(Value::Number(nb)), Some(Value::Number(nc))) => {
-                        state.set_number(ra, nb + nc);
-                    }
-                    (Some(Value::Integer(ib)), Some(Value::Integer(ic))) => {
-                        state.set_number(ra, (ib as LuaNumber) + (ic as LuaNumber));
+            // Instruction::Move(inst) => {}
+            Instruction::LoadK(inst) => {
+
+            }
+            Instruction::Add(inst) => {
+                let ra = as_ra(inst, state.base);
+                let rb = as_rkb(inst, state.base, k);
+                let rc = as_rkc(inst, state.base, k);
+                let nb = TValue::new(Value::Integer(rb as i64), LuaType::Number);
+                let nc = TValue::new(Value::Integer(rc as i64), LuaType::Number);
+                match (nb.lua_type(), nc.lua_type()) {
+                    (Some(LuaType::Number), Some(LuaType::Number)) => {
+                        state.set_number(ra, TValue::new(nb.value() + nc.value(), LuaType::Number));
                     }
                     (_, _) => panic!("not match lua type"),
                 }

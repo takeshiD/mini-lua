@@ -46,7 +46,7 @@ pub struct Chunk {
 
 #[derive(Debug, PartialEq)]
 #[repr(u8)]
-enum Constant {
+pub enum Constant {
     Nil,
     Bool(bool),
     Number(f64),
@@ -363,6 +363,7 @@ mod tests {
     #[test]
     fn test_header() {
         let mut bytecodes = Vec::<u8>::new();
+        // Bytes: 1b4c_7561_5100_0104_0404_0800
         bytecodes.extend(&0x1b4c7561u32.to_be_bytes()); // signature
         bytecodes.extend(&0x51u8.to_be_bytes()); // lua_version
         bytecodes.extend(&0x00u8.to_be_bytes()); // format_version
@@ -372,6 +373,7 @@ mod tests {
         bytecodes.extend(&0x04u8.to_be_bytes()); // inst_size
         bytecodes.extend(&0x08u8.to_be_bytes()); // number_size
         bytecodes.extend(&0x00u8.to_be_bytes()); // integral
+        assert_eq!(true, false);
         let result = bytecodes
             .iter()
             .map(|n| format!("{:02x}", n))

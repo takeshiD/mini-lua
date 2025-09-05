@@ -21,9 +21,6 @@ impl TValue {
     pub fn lua_type(&self) -> Option<LuaType> {
         self.ttag.lua_type()
     }
-    pub fn value(&self) -> Value {
-        self.val.clone()
-    }
 }
 
 pub type LuaNumber = f64;
@@ -33,17 +30,6 @@ pub type LuaInteger = i64;
 pub enum Value {
     Integer(LuaInteger),
     Number(LuaNumber),
-}
-
-impl std::ops::Add for Value {
-    type Output = Value;
-    fn add(self, rhs: Value) -> Self::Output {
-        match (self, rhs) {
-            (Value::Integer(l), Value::Integer(r)) => Value::Integer(l + r),
-            (Value::Number(l), Value::Number(r)) => Value::Number(l + r),
-            (_, _) => panic!("not match type"),
-        }
-    }
 }
 
 const TAG_MASK: u8 = 0x0F; // b0000_1111

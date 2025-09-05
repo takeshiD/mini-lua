@@ -1,5 +1,3 @@
-use crate::eval::TValue;
-
 /// lua5.1
 #[rustfmt::skip]
 #[repr(u8)]
@@ -43,14 +41,74 @@ pub enum OpCode {
     OpVarArg    = 36u8,
 }
 
-pub type OperandA = u8;
-pub type OperandB = u16;
-pub type OperandC = u16;
-pub type OperandBx = u32;
+pub type OperandA = u8; // 8bit
+pub type OperandB = u16; // 9bit
+pub type OperandC = u16; // 9bit
+pub type OperandBx = u32; // 18bit
 
-#[repr(C)]
+pub const SIZE_OP: usize = 6;
+pub const SIZE_A: usize = 8;
+pub const SIZE_C: usize = 9;
+pub const SIZE_B: usize = 9;
+pub const SIZE_BX: usize = 18;
+
+pub const POS_OP: usize = 0;
+pub const POS_A: usize = POS_OP + SIZE_OP;
+pub const POS_C: usize = POS_A + SIZE_A;
+pub const POS_B: usize = POS_C + SIZE_C;
+pub const POS_BX: usize = POS_C;
+
+pub const BITRK: usize = 1 << (SIZE_B - 1);
+
+#[rustfmt::skip]
+#[repr(u32)]
+pub enum Mask {
+    OP = 0b0000_0000_0000_0000_0000_0000_0011_1111,
+    A  = 0b0000_0000_0000_0000_0011_1111_1100_0000,
+    C  = 0b0000_0000_0111_1111_1100_0000_0000_0000,
+    B  = 0b1111_1111_1000_0000_0000_0000_0000_0000,
+    BX = 0b1111_1111_1111_1111_1100_0000_0000_0000,
+}
+
+#[repr(u32)]
 pub enum Instruction {
-    Move(OpCode, OperandA, OperandB),
-    LoadK(OpCode, OperandA, OperandBx),
-    Add(OpCode, OperandA, OperandB, OperandC),
+    Move(u32),
+    LoadK(u32),
+    Add(u32),
+}
+
+pub fn is_k(x: u32) -> bool {
+    (x & (BITRK as u32)) != 0
+}
+
+pub fn index_k(x: u32) -> u32 {
+    x & !(BITRK as u32)
+}
+
+pub fn as_ra(inst: u32, base: usize) -> usize {
+    let ra = (inst & (Mask::A as u32)) >> POS_A;
+    base + (ra as usize)
+}
+
+pub fn as_rkb(inst: u32, k: usize, base: usize) -> usize {
+    let rb = (inst & (Mask::B as u32)) >> POS_B;
+    if is_k(rb) {
+        k + (rb as usize)
+    } else {
+        base + (rb as usize)
+    }
+}
+
+pub fn as_kbx(inst: u32, k: usize) -> usize {
+    let rbx = (inst & (Mask::BX as u32)) >> POS_BX;
+    k + (rbx as usize)
+}
+
+pub fn as_rkc(inst: u32, k: usize, base: usize) -> usize {
+    let rc = (inst & (Mask::C as u32)) >> POS_C;
+    if is_k(rc) {
+        k + (rc as usize)
+    } else {
+        base + (rc as usize)
+    }
 }

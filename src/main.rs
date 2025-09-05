@@ -4,13 +4,11 @@ mod parser;
 mod undump;
 mod vm;
 
-use std::env::args;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use unindent::unindent;
 
-use crate::undump::Undump;
+use crate::{opcodes::Instruction, undump::Undump};
 
 fn main() -> Result<()> {
     // let program = unindent(
@@ -28,5 +26,9 @@ fn main() -> Result<()> {
     let data = std::fs::read(p)?;
     let mut ud = Undump::new(data);
     ud.print();
+    // let insts = [
+    //     Instruction::LoadK(0x)
+    //     Instruction::Add(0b)
+    // ]
     Ok(())
 }

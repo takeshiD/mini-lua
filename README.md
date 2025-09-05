@@ -3,25 +3,56 @@
 
 ```lua
 local a = 1
-local b = a + 2
-print("hello world")
-print(b)
+local x = a + 2
 ```
 
 をluacでコンパイルしたあとに`luac -l`で閲覧
 
 ```bin
-main <local_assign.lua:0,0> (9 instructions, 36 bytes at 0x425880)
-0+ params, 4 slots, 0 upvalues, 2 locals, 4 constants, 0 functions
-        1       [1]     LOADK           0 -1    ; 1
-        2       [2]     ADD             1 0 -2  ; - 2
-        3       [3]     GETGLOBAL       2 -3    ; print
-        4       [3]     LOADK           3 -4    ; "hello world"
-        5       [3]     CALL            2 2 1
-        6       [4]     GETGLOBAL       2 -3    ; print
-        7       [4]     MOVE            3 1
-        8       [4]     CALL            2 2 1
-        9       [4]     RETURN          0 1
+main <add.lua:0,0> (5 instructions, 20 bytes at 0x425860)
+0+ params, 2 slots, 0 upvalues, 1 local, 3 constants, 0 functions
+        1       [1]     LOADK           0 -2    ; 1
+        2       [1]     SETGLOBAL       0 -1    ; a
+        3       [2]     GETGLOBAL       0 -1    ; a
+        4       [2]     ADD             0 0 -3  ; - 2
+        5       [2]     RETURN          0 1
+```
+
+```
+00000000: 1b4c 7561 5100 0104 0804 0800 0900 0000  .LuaQ...........
+00000010: 0000 0000 4061 6464 2e6c 7561 0000 0000  ....@add.lua....
+00000020: 0000 0000 0000 0002 0205 0000 0001 4000  ..............@.
+00000030: 0007 0000 0005 0000 000c 8040 001e 0080  ...........@....
+00000040: 0003 0000 0004 0200 0000 0000 0000 6100  ..............a.
+00000050: 0300 0000 0000 00f0 3f03 0000 0000 0000  ........?.......
+00000060: 0040 0000 0000 0500 0000 0100 0000 0100  .@..............
+00000070: 0000 0200 0000 0200 0000 0200 0000 0100  ................
+00000080: 0000 0200 0000 0000 0000 7800 0400 0000  ..........x.....
+00000090: 0400 0000 0000 0000 0a                   .........
+```
+
+Header
+```
+1b4c 7561 51 : \EscLua51
+00 : format version
+01 : endian
+04 : int_size
+08 : size_t_size
+04 : inst_size
+08 : number_size
+00 : integral
+```
+```
+0900 0000 0000 0000 :
+4061 6464 2e6c 7561 : @add.lua
+0000 0000 : first_line
+0000 0000 : last_line
+00 : num_upval
+00 : num_params
+00 : is_varg
+02 : max_stack
+0205 0000 : num_insts
+0001 4000
 ```
 
 ```lua
@@ -434,4 +465,10 @@ RKB,RKC: B, Cの先頭bitが1なら定数、0ならレジスタアドレスと�
         ISK(GETARG_B(i)) ? k+INDEXK(GETARG_B(i)) : base+GETARG_B(i))
 #define RKC(i)  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
         ISK(GETARG_C(i)) ? k+INDEXK(GETARG_C(i)) : base+GETARG_C(i))
+
+/* this bit 1 means constant (0 means register) */
+#define BITRK           (1 << (SIZE_B - 1))
+#define INDEXK(r)       ((int)(r) & ~BITRK)
+/* test whether value is a constant */
+#define ISK(x)          ((x) & BITRK)
 ```
