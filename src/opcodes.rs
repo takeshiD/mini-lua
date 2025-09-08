@@ -75,6 +75,7 @@ pub enum Instruction {
     Move(u32),
     LoadK(u32),
     Add(u32),
+    Return(u32),
 }
 
 pub fn is_k(x: u32) -> bool {

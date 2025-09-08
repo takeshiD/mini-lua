@@ -42,17 +42,19 @@ Header
 08 : number_size
 00 : integral
 ```
+Proto
 ```
-0900 0000 0000 0000 :
-4061 6464 2e6c 7561 : @add.lua
-0000 0000 : first_line
-0000 0000 : last_line
+0900 0000 0000 0000    : name length = 9
+4061 6464 2e6c 7561 00 : @add.lua
+00 0000 00 : first_line
+00 0000 00 : last_line
 00 : num_upval
 00 : num_params
-00 : is_varg
-02 : max_stack
-0205 0000 : num_insts
-0001 4000
+02 : is_varg
+02 : max_stack_size
+05 0000 0001 4000
+00000030: 0007 0000 0005 0000 000c 8040 001e 0080  ...........@....
+00000040: 0003 0000 0004 0200 0000 0000 0000 6100  ..............a.
 ```
 
 ```lua

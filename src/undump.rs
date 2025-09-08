@@ -22,6 +22,16 @@ impl Local {
     }
 }
 
+impl std::fmt::Display for Local {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            " \"{}\" (line {}-{})",
+            self.name, self.start_line, self.end_line
+        )
+    }
+}
+
 #[derive(Debug, PartialEq)]
 struct MetaInfo {
     first_line: LuaInt,
@@ -30,6 +40,21 @@ struct MetaInfo {
     num_params: u8,
     is_varg: bool,
     max_stack: u8,
+}
+
+impl std::fmt::Display for MetaInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(
+            f,
+            "    Span     {} - {} line",
+            self.first_line, self.last_line
+        )?;
+        writeln!(f, "    Upvals   {}", self.num_upvals)?;
+        writeln!(f, "    Params   {}", self.num_params)?;
+        writeln!(f, "    IsVarg   {}", self.is_varg)?;
+        write!(f, "    MaxStack {}", self.max_stack)?;
+        write!(f, "")
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -44,6 +69,55 @@ pub struct Chunk {
     upvalues: Vec<String>,
 }
 
+impl std::fmt::Display for Chunk {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.name.is_empty() {
+            writeln!(f, "ChunkName: None")?;
+        } else {
+            writeln!(f, "ChunkName: {}", self.name)?;
+        }
+        writeln!(f, "MetaInfo:")?;
+        writeln!(f, "{}", self.meta_info)?;
+        writeln!(f, "Instructions:")?;
+        for (i, (inst, line)) in self.instructions.iter().zip(self.lines.iter()).enumerate() {
+            writeln!(f, "  [{i}]  0x{:08X}     line{}", inst, line)?;
+        }
+        writeln!(f, "ConstantTable:")?;
+        for (i, c) in self.constant_table.iter().enumerate() {
+            writeln!(f, "  [{i:02x}]  {c}")?;
+        }
+        write!(f, "Protos: ")?;
+        if self.protos.is_empty() {
+            writeln!(f, "empty")?;
+        } else {
+            writeln!(f)?;
+            for p in self.protos.iter() {
+                write!(f, "{p}")?;
+            }
+        }
+        write!(f, "Locals: ")?;
+        if self.locals.is_empty() {
+            writeln!(f, "empty")?;
+        } else {
+            writeln!(f)?;
+            for (i, lcl) in self.locals.iter().enumerate() {
+                writeln!(f, "  [{i:02x}]  {lcl}")?;
+            }
+        }
+        write!(f, "Upvals:")?;
+        if self.upvalues.is_empty() {
+            writeln!(f, "empty")?;
+        } else {
+            writeln!(f)?;
+            for (i, upval) in self.upvalues.iter().enumerate() {
+                writeln!(f, "  [{i:02x}]  {upval}")?;
+            }
+        }
+        writeln!(f)?;
+        write!(f, "")
+    }
+}
+
 #[derive(Debug, PartialEq)]
 #[repr(u8)]
 pub enum Constant {
@@ -53,6 +127,17 @@ pub enum Constant {
     String(String),
 }
 
+impl std::fmt::Display for Constant {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Constant::Nil => write!(f, "Nil"),
+            Constant::Bool(b) => write!(f, "Bool({b})"),
+            Constant::Number(n) => write!(f, "Number({n})"),
+            Constant::String(s) => write!(f, "String(\"{s}\")"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 #[repr(u8)]
 enum Endian {
@@ -60,11 +145,29 @@ enum Endian {
     LittleEndian = 1u8,
 }
 
+impl std::fmt::Display for Endian {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Endian::BigEndian => write!(f, "BigEndian"),
+            Endian::LittleEndian => write!(f, "LittleEndian"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 #[repr(u8)]
 enum Integral {
     FloatingPoint = 0u8,
     IntegralNumber = 1u8,
+}
+
+impl std::fmt::Display for Integral {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Integral::IntegralNumber => write!(f, "IntegralNumber"),
+            Integral::FloatingPoint => write!(f, "FloatingPoint"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -79,6 +182,29 @@ struct Header {
     inst_size: u8,      // default 4
     number_size: u8,    // default 8
     integral: Integral, // 0x00=floating-point, 0x01=integral number type default 0
+}
+
+impl std::fmt::Display for Header {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Signature: 0x")?;
+        for (i, s) in self.signature.iter().enumerate() {
+            write!(f, "{:02x}", s)?;
+            if i < (self.signature.len() - 1) && (i % 2 == 1) {
+                write!(f, "_")?;
+            }
+        }
+        writeln!(f)?;
+        writeln!(f, "LuaVersion: {:02x}", self.lua_version)?;
+        writeln!(f, "FromatVersion: {:02x}", self.format_version)?;
+        writeln!(f, "Endian: {}", self.endian)?;
+        writeln!(f, "Sizes")?;
+        writeln!(f, "    int          {} byte", self.int_size)?;
+        writeln!(f, "    size_t       {} byte", self.size_t_size)?;
+        writeln!(f, "    instruction  {} byte", self.inst_size)?;
+        writeln!(f, "    number       {} byte", self.number_size)?;
+        writeln!(f, "Integral: {}", self.integral)?;
+        write!(f, "")
+    }
 }
 
 enum SizeT {
@@ -98,6 +224,15 @@ impl From<LuaInt> for usize {
         match item {
             LuaInt::U32(n) => n as usize,
             LuaInt::U64(n) => n as usize,
+        }
+    }
+}
+
+impl std::fmt::Display for LuaInt {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            LuaInt::U32(n) => write!(f, "{n}"),
+            LuaInt::U64(n) => write!(f, "{n}"),
         }
     }
 }
@@ -345,8 +480,10 @@ impl Undump {
     pub fn print(&mut self) {
         match self.undump() {
             Ok((h, c)) => {
-                println!("header: {:#?}", h);
-                println!("chunk: {:#?}", c);
+                println!("#### Header ####");
+                println!("{}", h);
+                println!("#### Chunks ####");
+                println!("{}", c);
             }
             Err(e) => {
                 eprintln!("{e}");

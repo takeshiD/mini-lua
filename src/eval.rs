@@ -26,11 +26,18 @@ impl TValue {
     }
 }
 
+impl std::fmt::Display for TValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "TValue({},{})", self.val, self.ttag)
+    }
+}
+
 pub type LuaNumber = f64;
 pub type LuaInteger = i64;
 
 #[derive(Debug, Clone)]
 pub enum Value {
+    Nil,
     Integer(LuaInteger),
     Number(LuaNumber),
 }
@@ -42,6 +49,16 @@ impl std::ops::Add for Value {
             (Value::Integer(l), Value::Integer(r)) => Value::Integer(l + r),
             (Value::Number(l), Value::Number(r)) => Value::Number(l + r),
             (_, _) => panic!("not match type"),
+        }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Value::Nil => write!(f, "Nil"),
+            Value::Integer(n) => write!(f, "{}", n),
+            Value::Number(n) => write!(f, "{}", n),
         }
     }
 }
@@ -88,6 +105,12 @@ impl TypeTag {
     }
 }
 
+impl std::fmt::Display for TypeTag {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.lua_type().unwrap())
+    }
+}
+
 /// called `Basic type`(LUA_T*) in lua type tag system
 #[derive(Debug, Clone)]
 #[repr(u8)]
@@ -104,6 +127,25 @@ pub enum LuaType {
     Proto = 9,
     Upval = 10,
     Deadkey = 11,
+}
+impl std::fmt::Display for LuaType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let s = match self {
+            LuaType::Nil => "Nil",
+            LuaType::Boolean => "Boolean",
+            LuaType::LightUserData => "LightUserData",
+            LuaType::Number => "Number",
+            LuaType::String => "String",
+            LuaType::Table => "Table",
+            LuaType::Function => "Function",
+            LuaType::UserData => "UserData",
+            LuaType::Thread => "Thread",
+            LuaType::Proto => "Proto",
+            LuaType::Upval => "Upval",
+            LuaType::Deadkey => "Deadkey",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 #[derive(Debug, Clone)]
