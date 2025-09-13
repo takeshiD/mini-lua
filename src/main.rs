@@ -35,8 +35,6 @@ fn main() -> Result<()> {
     let insts = vec![
         Instruction::LoadK(0x00000001),
         Instruction::Add(0x0040404c),
-        // 0000 0000 0100 0000 0100 0000 0100 1100
-        // BBBB BBBB BCCC CCCC CCAA AAAA AAOO OOOO
         Instruction::Return(0x0000001d),
     ];
     vm_execute(&mut state, insts);

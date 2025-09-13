@@ -1,8 +1,10 @@
 use core::panic;
+use std::sync::{Arc, Mutex};
 
 use crate::eval::{LuaNumber, LuaType, TValue, Value};
 use crate::opcodes::{Instruction, as_kbx, as_ra, as_rkb, as_rkc};
 use crate::undump::Constant;
+
 
 pub struct Proto {
     constant_table: Vec<Constant>,
@@ -27,6 +29,10 @@ impl CallInfo {
             },
         }
     }
+}
+
+struct GlobalState {
+
 }
 
 pub struct LuaState {
@@ -102,6 +108,14 @@ pub fn vm_execute(state: &mut LuaState, insts: Vec<Instruction>) {
                     }
                     (_, _) => panic!("not match lua type"),
                 };
+                pc += 1;
+            }
+            Instruction::GetGlobal(inst) => {
+                unimplemented!()
+            }
+            Instruction::SetGlobal(inst) => {
+                let ra = as_ra(inst, state.base);
+                println!("SetGlobal {}", ra);
                 pc += 1;
             }
             Instruction::Return(_) => break,
